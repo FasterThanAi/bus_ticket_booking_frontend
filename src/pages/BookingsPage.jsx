@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getMyBookings, cancelTicket } from '../services/apiService'; // <-- Uses your API service
-import { Link } from 'react-router-dom'; // <-- Imports Link for the button
+import { getMyBookings, cancelTicket } from '../services/apiService';
+import BookingListItem from '../components/BookingListItem'; // <-- 1. IMPORT
 
 function BookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -9,12 +9,11 @@ function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const { user, token } = useAuth();
 
-  // Function to fetch bookings
-  const fetchBookings = useCallback(async () => { // <-- Uses useCallback
+  const fetchBookings = useCallback(async () => {
+    // ... (your existing fetchBookings logic) ...
     if (!user) return;
     setLoading(true);
     try {
-      // Use the service
       const data = await getMyBookings(user.id, token);
       setBookings(data);
     } catch (err) {
@@ -22,18 +21,17 @@ function BookingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, token]); // <-- Dependencies for useCallback
+  }, [user, token]);
 
-  // Function to handle ticket cancellation
   const handleCancelTicket = async (bookingId) => {
+    // ... (your existing handleCancelTicket logic) ...
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
       return;
     }
     try {
-      // Use the service
       const result = await cancelTicket(bookingId, token);
       alert(result.Message);
-      fetchBookings(); // Refresh the list
+      fetchBookings();
     } catch (err) {
       alert(err.message);
       console.error('Error cancelling ticket:', err);
@@ -42,9 +40,7 @@ function BookingsPage() {
 
   useEffect(() => {
     fetchBookings();
-  }, [fetchBookings]); // <-- Use the callback function
-
-  const formatDate = (dateString) => new Date(dateString).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
+  }, [fetchBookings]);
   
   if (loading) return <div className="p-8 text-center">Loading your bookings...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
@@ -57,44 +53,13 @@ function BookingsPage() {
         <p>You have no active bookings.</p>
       ) : (
         <div className="space-y-4">
+          {/* --- 2. UPDATED: Use the new component --- */}
           {bookings.map(booking => (
-            <div key={booking.BookingID} className="flex flex-col md:flex-row items-center justify-between p-4 bg-white rounded-lg shadow">
-              <div>
-                <strong className="text-lg text-blue-700">
-                  {booking.Source} to {booking.Destination}
-                </strong>
-                <p className="text-gray-600">Departure: {formatDate(booking.DepartureTime)}</p>
-                <p className="text-sm text-gray-500">Seats: {booking.NumOfSeats} | Total: ₹{booking.TotalAmount}</p>
-                <p className="text-sm text-gray-500">Booked on: {formatDate(booking.BookingDate)}</p>
-              </div>
-              <div className="text-right mt-4 md:mt-0">
-                <strong 
-                  className={`font-bold ${
-                    booking.Status === 'Cancelled' ? 'text-red-500' : 'text-green-500'
-                  }`}
-                >
-                  {booking.Status}
-                </strong>
-                
-                {/* --- UPDATED BUTTONS --- */}
-                <div className="flex gap-2 mt-2">
-                  <Link
-                    to={`/ticket/${booking.BookingID}`}
-                    className="block px-3 py-1 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                  >
-                    View Ticket
-                  </Link>
-                  {booking.Status === 'Confirmed' && (
-                    <button 
-                      onClick={() => handleCancelTicket(booking.BookingID)}
-                      className="block px-3 py-1 text-sm font-semibold text-white bg-red-500 rounded-md hover:bg-red-600"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <BookingListItem 
+              key={booking.BookingID}
+              booking={booking}
+              onCancel={handleCancelTicket}
+            />
           ))}
         </div>
       )}

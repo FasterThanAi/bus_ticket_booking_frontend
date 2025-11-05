@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchBuses } from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
+import BusListItem from '../components/BusListItem'; // <-- 1. IMPORT
 
 function SearchPage() {
   const [searchResults, setSearchResults] = useState([]);
@@ -16,6 +17,7 @@ function SearchPage() {
   const date = searchParams.get('date');
 
   useEffect(() => {
+    // ... (your existing useEffect fetch logic) ...
     if (!from || !to || !date) {
       setError('Missing search parameters.');
       setLoading(false);
@@ -38,19 +40,16 @@ function SearchPage() {
     fetchResults();
   }, [from, to, date]);
 
-  // This is the new booking flow
   const handleBook = (scheduleId, availableSeats) => {
+    // ... (your existing handleBook logic) ...
     if (!user) {
       alert('Please log in to book a ticket.');
       navigate('/login');
       return;
     }
-
     const numToBookStr = window.prompt('How many seats would you like to book? (Max 6)', '1');
     if (!numToBookStr) return;
-    
     const numToBook = parseInt(numToBookStr, 10);
-
     if (isNaN(numToBook) || numToBook <= 0 || numToBook > 6) {
       alert('Please enter a valid number between 1 and 6.');
       return;
@@ -59,12 +58,8 @@ function SearchPage() {
       alert(`Booking failed: Only ${availableSeats} seats are available.`);
       return;
     }
-
-    // Navigate to the passenger details page
     navigate(`/book/passengers?scheduleId=${scheduleId}&seats=${numToBook}`);
   };
-  
-  const formatDate = (dateString) => new Date(dateString).toLocaleString('en-IN', { timeStyle: 'short', dateStyle: 'short' });
 
   return (
     <div className="container max-w-5xl p-8 mx-auto">
@@ -81,28 +76,13 @@ function SearchPage() {
           {searchResults.length === 0 ? (
             <p className="text-center text-gray-500">No buses found.</p>
           ) : (
+            // --- 2. UPDATED: Use the new component ---
             searchResults.map(bus => (
-              <div key={bus.ScheduleID} className="flex flex-col md:flex-row items-center justify-between p-4 bg-white rounded-lg shadow-md border">
-                <div className="flex-1 mb-4 md:mb-0">
-                  <strong className="text-xl text-blue-800">{bus.BusType}</strong>
-                  <p className="text-gray-600">Reg: {bus.RegNumber}</p>
-                  <p className="text-sm text-gray-500">
-                    Dep: <span className="font-semibold">{formatDate(bus.DepartureTime)}</span> | 
-                    Arr: <span className="font-semibold">{formatDate(bus.ArrivalTime)}</span>
-                  </p>
-                </div>
-                <div className="flex-shrink-0 w-full md:w-auto md:text-right">
-                  <strong className="text-2xl font-bold">₹{bus.Fare}</strong>
-                  <p className="text-sm text-gray-500">{bus.AvailableSeats} seats left</p>
-                  <button 
-                    onClick={() => handleBook(bus.ScheduleID, bus.AvailableSeats)}
-                    disabled={bus.AvailableSeats <= 0}
-                    className="w-full md:w-auto px-6 py-2 mt-2 text-md font-bold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-gray-400"
-                  >
-                    {bus.AvailableSeats <= 0 ? 'Full' : 'Book'}
-                  </button>
-                </div>
-              </div>
+              <BusListItem 
+                key={bus.ScheduleID} 
+                bus={bus} 
+                onBook={handleBook} 
+              />
             ))
           )}
         </div>
