@@ -84,3 +84,7 @@ export const cancelTicket = (bookingId, token) => {
 export const getMyBookings = (userId, token) => {
   return apiRequest(`${API_URL}/bookings/${userId}`, 'GET', null, token);
 };
+
+export const getBookingDetails = (bookingId, token) => {
+  return apiRequest(`${API_URL}/booking/${bookingId}`, 'GET', null, token);
+};

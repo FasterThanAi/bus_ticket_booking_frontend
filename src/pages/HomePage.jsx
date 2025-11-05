@@ -1,167 +1,190 @@
-import React, { useState } from 'react';
-import { searchBuses } from '../services/apiService';
-import SearchForm from '../components/SearchForm';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bookTicket } from '../services/apiService';
+
+// --- 1. MODIFIED: Import your local image ---
+// Make sure you have an 'assets' folder in 'src'
+// and your image file is in there.
+//
+// RENAME 'hero-bus.jpg' to your image's filename
+import heroImageUrl from '../assets/screen.png';
+
+// --- 2. MODIFIED: Expanded list of cities ---
+const allCities = [
+  'Mumbai', 'Pune', 'Delhi', 'Jaipur', 'Bangalore', 'Hyderabad',
+  'Patna', 'Lucknow', 'Chennai', 'Kolkata', 'Surat', 'Nagpur',
+  'Ahmedabad', 'Indore', 'Bhopal', 'Kochi', 'Goa', 'Chandigarh',
+  'Mysore', 'Coimbatore', 'Vijayawada', 'Visakhapatnam', 'Agra',
+  'Varanasi', 'Allahabad', 'Kanpur', 'Meerut', 'Udaipur', 'Jodhpur'
+];
 
 function HomePage() {
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [searched, setSearched] = useState(false);
-  
-  const { user, token } = useAuth();
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState('');
   const navigate = useNavigate();
 
-  const handleSearch = async (searchParams) => {
-    setLoading(true);
-    setError('');
-    setSearched(true);
-    setSearchResults([]);
+  const [sourceSuggestions, setSourceSuggestions] = useState([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+  const [showSourceSuggestions, setShowSourceSuggestions] = useState(false);
+  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
 
-    try {
-      const data = await searchBuses(
-        searchParams.source,
-        searchParams.destination,
-        searchParams.date
+  const sourceRef = useRef(null);
+  const destRef = useRef(null);
+
+  const handleSourceChange = (e) => {
+    const value = e.target.value;
+    setSource(value);
+    if (value.length > 0) {
+      const filtered = allCities.filter(city => 
+        city.toLowerCase().startsWith(value.toLowerCase())
       );
-      setSearchResults(data);
-    } catch (err) {
-      setError('No buses found for this route or date. Please try again.');
-    } finally {
-      setLoading(false);
+      setSourceSuggestions(filtered);
+      setShowSourceSuggestions(true);
+    } else {
+      setShowSourceSuggestions(false);
     }
   };
 
-  // --- MODIFIED: Handle Booking ---
-  const handleBook = async (scheduleId, availableSeats) => {
-    // 1. Check if user is logged in (same as before)
-    if (!user) {
-      alert('Please log in to book a ticket.');
-      navigate('/login');
+  const handleDestinationChange = (e) => {
+    const value = e.target.value;
+    setDestination(value);
+    if (value.length > 0) {
+      const filtered = allCities.filter(city => 
+        city.toLowerCase().startsWith(value.toLowerCase())
+      );
+      setDestinationSuggestions(filtered);
+      setShowDestSuggestions(true);
+    } else {
+      setShowDestSuggestions(false);
+    }
+  };
+
+  const selectSource = (city) => {
+    setSource(city);
+    setShowSourceSuggestions(false);
+  };
+
+  const selectDestination = (city) => {
+    setDestination(city);
+    setShowDestSuggestions(false);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!source || !destination || !date) {
+      alert('Please fill all fields');
       return;
     }
+    navigate(`/search?from=${source}&to=${destination}&date=${date}`);
+  };
 
-    // --- NEW: Ask for number of seats ---
-    const numToBookStr = window.prompt('How many seats would you like to book? (Max 6)', '1');
-    
-    // 2. Validate the input
-    if (!numToBookStr) {
-      return; // User clicked "Cancel"
-    }
-    
-    const numToBook = parseInt(numToBookStr, 10);
-
-    if (isNaN(numToBook) || numToBook <= 0) {
-      alert('Please enter a valid number.');
-      return;
-    }
-    
-    if (numToBook > 6) {
-      alert('You can book a maximum of 6 tickets at a time.');
-      return;
-    }
-
-    if (numToBook > availableSeats) {
-      alert(`Booking failed: Only ${availableSeats} seats are available.`);
-      return;
-    }
-
-    // 3. --- NEW: Build the passengers array ---
-    // In a real app, you'd show a form to get this.
-    // For now, we will create dummy data.
-    let passengers = [];
-    
-    // Add the logged-in user as the first passenger
-    passengers.push({
-      name: user.name,
-      age: 25, // Dummy data
-      gender: 'Male', // Dummy data
-      seat: `A${Math.floor(Math.random() * 20) + 1}` // Dummy data
-    });
-
-    // Add remaining passengers as "Guests"
-    for (let i = 1; i < numToBook; i++) {
-      passengers.push({
-        name: `Guest ${i + 1}`,
-        age: 30, // Dummy data
-        gender: 'Female', // Dummy data
-        seat: `B${Math.floor(Math.random() * 20) + 1}` // Dummy data
-      });
-    }
-
-    // 4. --- NEW: Create the final bookingData object ---
-    const bookingData = {
-      userId: user.id,
-      scheduleId: scheduleId,
-      numOfSeats: numToBook, // Use the number from the prompt
-      passengers: passengers // Use the new passenger array
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sourceRef.current && !sourceRef.current.contains(event.target)) {
+        setShowSourceSuggestions(false);
+      }
+      if (destRef.current && !destRef.current.contains(event.target)) {
+        setShowDestSuggestions(false);
+      }
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    try {
-      // 5. Call the API service (this part is the same)
-      const result = await bookTicket(bookingData, token);
-      alert(result.Message); 
+return (
+    // The hero section is now taller, change h-[60vh] to h-[70vh] or as needed
+    <div className="relative h-[70vh] -mt-4">
+      {/* This <img> tag now uses the imported image variable (NO -z-10) */}
+      <img src={heroImageUrl} alt="Bus on a highway" className="absolute inset-0 w-full h-full object-cover" />
+      {/* The overlay (NO -z-10) */}
+     
       
-      // 6. Navigate to bookings page (same as before)
-      navigate('/bookings'); 
-
-    } catch (err) {
-      alert(`Booking Failed: ${err.message}`);
-    }
-  };
-  
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('en-IN', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    });
-  };
-
-  return (
-    <div className="container max-w-6xl p-8 mx-auto">
-      <h1 className="mb-6 text-4xl font-bold text-center">
-        Find Your Bus
-      </h1>
-      
-      <SearchForm onSearch={handleSearch} />
-
-      <div className="mt-8">
-        {loading && <p className="text-center">Loading buses...</p>}
-        {error && <p className="text-center text-red-500">{error}</p>}
+      {/* This 'relative z-10' correctly puts the text ON TOP of the image/overlay */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full text-white pt-12">
+        <h1 className="text-5xl font-bold mb-8 text-shadow-lg"> Online Bus Ticket Booking Site</h1>
         
-        {!loading && !error && searchResults.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold">Available Buses</h2>
-            {searchResults.map(bus => (
-              <div key={bus.ScheduleID} className="flex items-center justify-between p-4 bg-white rounded-lg shadow">
-                <div>
-                  <strong className="text-lg text-blue-700">{bus.BusType}</strong>
-                  <p className="text-gray-600">Reg: {bus.RegNumber}</p>
-                  <p className="text-sm">Dep: {formatDate(bus.DepartureTime)} | Arr: {formatDate(bus.ArrivalTime)}</p>
-                </div>
-                <div className="text-right">
-                  <strong className="text-xl">₹{bus.Fare}</strong>
-                  <p className="text-sm text-gray-500">{bus.AvailableSeats} seats left</p>
-                  
-                  {/* --- MODIFIED BUTTON: Pass available seats --- */}
-                  <button 
-                    onClick={() => handleBook(bus.ScheduleID, bus.AvailableSeats)} // <-- Pass available seats
-                    disabled={bus.AvailableSeats <= 0}
-                    className="px-4 py-1 mt-2 text-sm font-bold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-gray-400"
+        <form 
+          onSubmit={handleSearch} 
+          className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-4 items-end"
+        >
+          {/* "From" Input */}
+          <div className="relative" ref={sourceRef}>
+            <label htmlFor="from" className="block text-sm font-medium text-gray-500 mb-1">From</label>
+            <input
+              type="text"
+              id="from"
+              value={source}
+              onChange={handleSourceChange}
+              onFocus={() => source.length > 0 && setShowSourceSuggestions(true)}
+              className="w-full text-lg font-semibold text-gray-900 border-b-2 border-gray-300 focus:border-red-500 focus:outline-none p-2"
+              placeholder="Source"
+              autoComplete="off"
+            />
+            {/* Suggestions Dropdown */}
+            {showSourceSuggestions && sourceSuggestions.length > 0 && (
+              <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                {sourceSuggestions.map(city => (
+                  <li
+                    key={city}
+                    onClick={() => selectSource(city)}
+                    className="p-2 text-gray-900 cursor-pointer hover:bg-gray-100"
                   >
-                    {bus.AvailableSeats <= 0 ? 'Full' : 'Book'}
-                  </button>
-                </div>
-              </div>
-            ))}
+                    {city}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
-        
-        {!loading && !error && searchResults.length === 0 && searched && (
-          <p className="text-center text-gray-500">No buses found for this selection.</p>
-        )}
+
+          {/* "To" Input */}
+          <div className="relative" ref={destRef}>
+            <label htmlFor="to" className="block text-sm font-medium text-gray-500 mb-1">To</label>
+            <input
+              type="text"
+              id="to"
+              value={destination}
+              onChange={handleDestinationChange}
+              onFocus={() => destination.length > 0 && setShowDestSuggestions(true)}
+              className="w-full text-lg font-semibold text-gray-900 border-b-2 border-gray-300 focus:border-red-500 focus:outline-none p-2"
+              placeholder="Destination"
+              autoComplete="off"
+            />
+            {/* Suggestions Dropdown */}
+            {showDestSuggestions && destinationSuggestions.length > 0 && (
+              <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                {destinationSuggestions.map(city => (
+                  <li
+                    key={city}
+                    onClick={() => selectDestination(city)}
+                    className="p-2 text-gray-900 cursor-pointer hover:bg-gray-100"
+                  >
+                    {city}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Date & Search Button */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="relative">
+              <label htmlFor="date" className="block text-sm font-medium text-gray-500 mb-1">Date of Journey</label>
+              <input
+                type="date"
+                id="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full text-lg font-semibold text-gray-900 border-b-2 border-gray-300 focus:border-red-500 focus:outline-none p-2"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-red-600 text-white font-bold text-lg rounded-lg shadow-lg hover:bg-red-700 transition duration-300 h-full mt-6 py-2"
+            >
+              Search Buses
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

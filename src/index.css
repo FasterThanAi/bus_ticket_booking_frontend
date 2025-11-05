@@ -1,1 +1,22 @@
 @import "tailwindcss";
+/* Add these new rules at the end of your file */
+
+@media print {
+  /* Hide everything on the page by default when printing */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Make ONLY the ticket area and its contents visible */
+  .printable-ticket, .printable-ticket * {
+    visibility: visible;
+  }
+
+  /* Position the ticket at the top-left of the print page */
+  .printable-ticket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

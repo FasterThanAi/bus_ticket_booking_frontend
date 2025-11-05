@@ -1,97 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:8080/api';
+import { getMyBookings, cancelTicket } from '../services/apiService'; // <-- Uses your API service
+import { Link } from 'react-router-dom'; // <-- Imports Link for the button
 
 function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const { user, token } = useAuth(); // Get user and token from context
+  const { user, token } = useAuth();
 
   // Function to fetch bookings
-  const fetchBookings = async () => {
-    if (!user) return; // Don't fetch if no user
-
+  const fetchBookings = useCallback(async () => { // <-- Uses useCallback
+    if (!user) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/bookings/${user.id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          // This is crucial for protected routes
-          'Authorization': `Bearer ${token}` 
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch bookings');
-      }
-      
-      const data = await response.json();
+      // Use the service
+      const data = await getMyBookings(user.id, token);
       setBookings(data);
-
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, token]); // <-- Dependencies for useCallback
 
   // Function to handle ticket cancellation
   const handleCancelTicket = async (bookingId) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
       return;
     }
-    
     try {
-      const response = await fetch(`${API_URL}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Protected route
-        },
-        body: JSON.stringify({ bookingId: bookingId })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.message || 'Cancellation failed');
-      }
-
+      // Use the service
+      const result = await cancelTicket(bookingId, token);
       alert(result.Message);
-      // Refresh the bookings list after cancellation
-      fetchBookings();
-
+      fetchBookings(); // Refresh the list
     } catch (err) {
       alert(err.message);
       console.error('Error cancelling ticket:', err);
     }
   };
 
-  // Run fetchBookings once when the page loads
   useEffect(() => {
     fetchBookings();
-  }, [user, token]); // Re-run if user or token changes
+  }, [fetchBookings]); // <-- Use the callback function
 
-  // Helper to format date
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('en-IN', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    });
-  };
-
-  // --- Render ---
+  const formatDate = (dateString) => new Date(dateString).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
   
-  if (loading) {
-    return <div className="p-8 text-center">Loading your bookings...</div>;
-  }
-
-  if (error) {
-    return <div className="p-8 text-center text-red-500">Error: {error}</div>;
-  }
+  if (loading) return <div className="p-8 text-center">Loading your bookings...</div>;
+  if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
 
   return (
     <div className="container max-w-4xl p-8 mx-auto">
@@ -102,7 +58,7 @@ function BookingsPage() {
       ) : (
         <div className="space-y-4">
           {bookings.map(booking => (
-            <div key={booking.BookingID} className="flex items-center justify-between p-4 bg-white rounded-lg shadow">
+            <div key={booking.BookingID} className="flex flex-col md:flex-row items-center justify-between p-4 bg-white rounded-lg shadow">
               <div>
                 <strong className="text-lg text-blue-700">
                   {booking.Source} to {booking.Destination}
@@ -111,7 +67,7 @@ function BookingsPage() {
                 <p className="text-sm text-gray-500">Seats: {booking.NumOfSeats} | Total: ₹{booking.TotalAmount}</p>
                 <p className="text-sm text-gray-500">Booked on: {formatDate(booking.BookingDate)}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right mt-4 md:mt-0">
                 <strong 
                   className={`font-bold ${
                     booking.Status === 'Cancelled' ? 'text-red-500' : 'text-green-500'
@@ -119,14 +75,24 @@ function BookingsPage() {
                 >
                   {booking.Status}
                 </strong>
-                {booking.Status === 'Confirmed' && (
-                  <button 
-                    onClick={() => handleCancelTicket(booking.BookingID)}
-                    className="block w-full px-3 py-1 mt-2 text-sm text-white bg-red-500 rounded hover:bg-red-600"
+                
+                {/* --- UPDATED BUTTONS --- */}
+                <div className="flex gap-2 mt-2">
+                  <Link
+                    to={`/ticket/${booking.BookingID}`}
+                    className="block px-3 py-1 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
-                    Cancel
-                  </button>
-                )}
+                    View Ticket
+                  </Link>
+                  {booking.Status === 'Confirmed' && (
+                    <button 
+                      onClick={() => handleCancelTicket(booking.BookingID)}
+                      className="block px-3 py-1 text-sm font-semibold text-white bg-red-500 rounded-md hover:bg-red-600"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
