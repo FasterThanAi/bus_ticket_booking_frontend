@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid'; // Import icons
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import bgImage from '../assets/buslogo.png'; // <-- 1. IMPORT YOUR IMAGE
 
 function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,14 +17,12 @@ function LoginPage() {
     setError(''); 
 
     try {
-      // 1. Call login and get the user object back
       const user = await login(email, password); 
       
-      // 2. Check the user's role and redirect
       if (user.userType === 'Admin') {
-        navigate('/admin'); // <-- Admin goes to dashboard
+        navigate('/admin');
       } else {
-        navigate('/'); // <-- Customer goes to home/search page
+        navigate('/');
       }
 
     } catch (err) {
@@ -32,9 +31,20 @@ function LoginPage() {
   };
 
   return (
-    // --- NEW STYLES ---
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-2xl border">
+    // --- 2. MODIFIED OUTER DIV ---
+    // This div now has the background image, cover, and center properties.
+    // We also make it 'relative' to hold the overlay.
+    <div 
+      className="relative flex items-center justify-center min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      {/* --- 3. ADDED OVERLAY --- */}
+      {/* This darkens the background image so the form is easy to read */}
+   
+
+      {/* --- 4. ADDED 'relative' TO THE FORM --- */}
+      {/* This makes the form sit ON TOP of the overlay */}
+      <div className="relative w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-2xl border">
         
         <h2 className="text-2xl font-bold text-center text-gray-800">
           Bus Ticket Booking 
@@ -99,7 +109,6 @@ function LoginPage() {
           </div>
 
           <div>
-            {/* --- NEW STYLES --- */}
             <button
               type="submit"
               className="w-full px-4 py-3 text-lg font-bold text-white bg-red-600 border border-transparent rounded-lg shadow-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300"
